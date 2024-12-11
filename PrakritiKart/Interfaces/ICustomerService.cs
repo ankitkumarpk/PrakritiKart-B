@@ -1,4 +1,5 @@
-﻿using PrakritiKart.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using PrakritiKart.Models;
 namespace PrakritiKart.Interfaces
 {
     public interface ICustomerService
@@ -18,6 +19,30 @@ namespace PrakritiKart.Interfaces
         Task<Address?> UpdateAddressAsync(int customerId, int addressId, Address updatedAddress);
         Task<bool> DeleteAddressAsync(int customerId, int addressId);
         //Task GetUserByEmailAsync(object email);
+
+        //################   Home page Products ####################
+
+        Task<IEnumerable<Product>> GetHomeProductsAsync();
+
+        //######################### Product Page With Id ###########################
+        Task<GetProductById> GetProductByIdAsync(int productId);
+
+
+        //###############################  Serch Page Product ######################
+        Task<ProductSearchResult> GetProductsWithImagesAsync(string name, string? category, decimal? minPrice, decimal? maxPrice, int? rating, int page, int pageSize);
+
+        //##################### Cart page and add to catd functionalitiy #############
+
+        Task<int> AddToCartAsync(AddToCartRequest addToCartRequest, int customerId);
+        Task<IEnumerable<CartItem>> GetAllCartItemAsync(int customerId);
+
+        Task<IEnumerable<CartItemWithDetails>> GetAllCartItemsWithDetails(int customerId);
+        Task<int> RemoveItemFromCart(int cartId, int customerId);
+
+        //############## Payment Api ##################S
+        Task<PaymentDetails> CreateRazorpayOrderAsync(int customerId, decimal amount);
+        Task<bool> VerifyPaymentAsync(string razorpayOrderId, string razorpayPaymentId, string razorpaySignature, List<ProductOrderDto> products, int customerIdFromClaims);
+        Task<IEnumerable<OrderItemDetails>> GetOrderItemsByCustomerId(int customerId);
     }
 
 }

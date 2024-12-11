@@ -20,8 +20,11 @@ namespace PrakritiKart.Interfaces
 
         //################## Seller Poduct CRUD ###################################
         
-            Task<int> AddProductAsync(ProductDto productDto, int sellerId);
-        
+        Task<int> AddProductAsync(ProductDto productDto, int sellerId);
+        Task<IEnumerable<Product>> GetAllProductsAsync(int sellerId);
+        Task<bool> DeleteProductAsync(int productId,int sellerId);
+        Task<bool> EditProductAsync(int productId, ProductDto productDto, int sellerId);
+
 
     }
 }

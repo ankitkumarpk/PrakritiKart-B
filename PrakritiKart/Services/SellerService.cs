@@ -113,7 +113,7 @@ namespace PrakritiKart.Services
             }
         }
 
-        // #################################### Add Products Services ###########################################
+        // #################################### CRUD Products Services ###########################################
 
         public async Task<int> AddProductAsync(ProductDto productDto, int sellerId)
         {
@@ -151,16 +151,163 @@ namespace PrakritiKart.Services
             return productId;
         }
 
-        public async Task<IEnumerable<Product>> GetAllProducts(int sellerId)
+        public async Task<IEnumerable<Product>> GetAllProductsAsync(int sellerId)
         {
-            var sql = @"Select * from products WHERE SellerId = @SellerId";
-            return await _db.QueryAsync<Product>(sql, new { SellerId = sellerId });
+            var query = @"
+            SELECT 
+                p.ProductId, p.ProductName, p.Category, p.Price, p.Quantity, p.Description, p.Ingredients, p.DosageInstructions, p.IsActive, p.CreatedAt, p.UpdatedAt, 
+                pi.ImageId, pi.ImageUrl, pi.ImageType, pi.ProductId
+            FROM Products p
+            LEFT JOIN ProductImages pi ON p.ProductId = pi.ProductId    
+            WHERE p.SellerId = @SellerId";
+
+            var productDictionary = new Dictionary<int, Product>();
+            var products = await _db.QueryAsync<Product, ProductImage, Product>(
+                query,
+                (product, productImage) =>
+                {
+                    if (!productDictionary.TryGetValue(product.ProductId, out var currentProduct))
+                    {
+                        currentProduct = product;
+                        productDictionary.Add(currentProduct.ProductId, currentProduct);
+                    }
+
+                    if (productImage != null)
+                    {
+                        currentProduct.Images.Add(productImage);
+                    }
+
+                    return currentProduct;
+                },
+                new { SellerId = sellerId },  // Pass the sellerId to the query
+                splitOn: "ImageId"
+            );
+
+            return products.Distinct().ToList();
         }
 
+        public async Task<bool> DeleteProductAsync(int productId, int sellerId)
+        {
+            // SQL query to delete associated product images
+            var sqlDeleteImages = "DELETE FROM ProductImages WHERE ProductId = @ProductId;";
+
+            // SQL query to delete the product
+            var sqlDeleteProduct = @"DELETE FROM Products 
+                             WHERE ProductId = @ProductId AND SellerId = @SellerId;";
+
+            // Ensure connection is open
+            if (_db.State == ConnectionState.Closed)
+            {
+                _db.Open();
+            }
+
+            using (var transaction = _db.BeginTransaction())
+            {
+                try
+                {
+                    // Delete product images
+                    await _db.ExecuteAsync(sqlDeleteImages, new { ProductId = productId }, transaction);
+
+                    // Delete the product (only if it belongs to the given seller)
+                    var rowsAffected = await _db.ExecuteAsync(sqlDeleteProduct, new { ProductId = productId, SellerId = sellerId }, transaction);
+
+                    // Commit transaction if deletion was successful
+                    if (rowsAffected > 0)
+                    {
+                        transaction.Commit();
+                        return true;
+                    }
+                    else
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Rollback the transaction in case of an error
+                    transaction.Rollback();
+                    throw;
+                }
+                finally
+                {
+                    // Close the database connection
+                    _db.Close();
+                }
+            }
+        }
+
+        public async Task<bool> EditProductAsync(int productId, ProductDto productDto, int sellerId)
+        {
+            var sqlUpdateProduct = @"UPDATE Products SET ProductName=@ProductName, Category=@Category, Price=@Price, Quantity = @Quantity, Description = @Description, Ingredients = @Ingredients, DosageInstructions = @DosageInstructions, UpdatedAt = NOW() WHERE ProductId = @ProductId AND SellerID = @SellerId;";
+            var sqlDeleteImages = "DELETE FROM ProductImages WHERE ProductId = @ProductId";
+            var sqlInsertImages = "INSERT INTO ProductImages (ProductId, ImageUrl, CreatedAt) VALUES(@ProductId, @ImageUrl, NOW()); ";
+
+            //now open database connection if it's open
+            if(_db.State == ConnectionState.Closed)
+            {
+                _db.Open();
+            }
+
+            using (var transaction = _db.BeginTransaction())
+            {
+                try
+                {
+                    //Update product
+                    var rowsAffected = await _db.ExecuteAsync(sqlUpdateProduct, new
+                    {
+                        ProductId = productId,
+                        SellerId = sellerId,
+                        productDto.ProductName,
+                        productDto.Category,
+                        productDto.Price,
+                        productDto.Quantity,
+                        productDto.Description,
+                        productDto.Ingredients,
+                        productDto.DosageInstructions,
 
 
+                    }, transaction);
 
+                    if(rowsAffected == 0)
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
 
+                    //Delete images of product
+
+                    await _db.ExecuteAsync(sqlDeleteImages, new { ProductId = productId }, transaction);
+
+                    //Now insert images in the database using the reference of productId
+                    foreach(var imageUrl in productDto.ImageUrl)
+                    {
+                        await _db.ExecuteAsync(sqlInsertImages,
+                        new
+                        {
+                            ProductId = productId,
+                            ImageUrl = imageUrl,
+                        },transaction);
+
+                    }
+
+                    transaction.Commit();
+                    return true;
+
+                }catch(Exception)
+                {
+                    transaction.Rollback();
+                    return false;
+
+                }
+                finally
+                {
+                    _db.Close();
+
+                }
+            }
+
+        }
 
 
     }

@@ -1,4 +1,6 @@
-﻿namespace PrakritiKart.Models
+﻿using System.Security.Cryptography.X509Certificates;
+
+namespace PrakritiKart.Models
 {
     public class Seller
     {
@@ -48,6 +50,7 @@
     public class Product
     {
         public int ProductId { get; set; }
+        public int SellerId { get; set; }
         
         public string ProductName { get; set; }
         public string Category { get; set; }
@@ -59,10 +62,12 @@
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        
 
         // Collection to store multiple images
         public List<ProductImage> Images { get; set; } = new List<ProductImage>();
     }
+    
     public class ProductImage
     {
         public int ImageId { get; set; }

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using PrakritiKart.Interfaces;
 using PrakritiKart.Services;
-
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,7 +62,7 @@ app.UseCors(policy =>
 );
 
 // Use authentication and authorization middleware
-app.UseAuthentication(); // Add this line
+app.UseAuthentication(); 
 app.UseAuthorization();
 
 app.MapControllers();

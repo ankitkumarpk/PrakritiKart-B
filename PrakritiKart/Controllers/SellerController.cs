@@ -108,12 +108,12 @@ namespace PrakritiKart.Controllers
         public async Task<IActionResult> UploadImage(IFormFile file)
         {
 
-            //var sellerIdClaim = User.FindFirst("sellerid")?.Value;
-            //if (sellerIdClaim == null)
-            //{
-            //    return Unauthorized("Not able to Identify the seller");
-            //}
-            var sellerId = 4;
+            var sellerIdClaim = User.FindFirst("sellerid")?.Value;
+            if (sellerIdClaim == null)
+            {
+                return Unauthorized("Not able to Identify the seller");
+            }
+            var sellerId = Convert.ToInt32(sellerIdClaim);
             if (file == null || file.Length == 0)
                 return BadRequest("Please upload a valid image.");
 
@@ -136,7 +136,7 @@ namespace PrakritiKart.Controllers
         }
 
         //############################ Product Controller ###################
-        [HttpPost("add/product")]
+        [HttpPost("product/add")]
         public async Task<IActionResult> AddProduct([FromForm] ProductDto productDto)
         {
             if (!ModelState.IsValid)
@@ -144,8 +144,8 @@ namespace PrakritiKart.Controllers
                 return BadRequest("Invalid product data.");
             }
 
-            //var sellerIdClaim = User.FindFirst("sellerid")?.Value;
-            var sellerId = 4;
+            var sellerIdClaim = User.FindFirst("sellerid")?.Value;
+            var sellerId = Convert.ToInt32(sellerIdClaim);
             
 
             try
@@ -159,10 +159,58 @@ namespace PrakritiKart.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+        [HttpGet("product/getall")]
+        public async Task<ActionResult<IEnumerable<Product>>> GetAllProducts()
+        {
+            var sellerIdClaim = User.FindFirst("sellerid")?.Value;
+            var sellerId = Convert.ToInt32(sellerIdClaim);
+            var products = await _sellerService.GetAllProductsAsync(sellerId);
+            return Ok(products);
+        }
 
+        [HttpDelete("product/delete/{productId}")]
+        public async Task<IActionResult>DeleteProduct(int productId)
+        {
+            //var sellerIdClaim = User.FindFirst("sellerid")?.Value;
+            var sellerId = 4;
+            var success = _sellerService.DeleteProductAsync(productId,sellerId);
+            return Ok(new {Message = "Product deleted Succesfully"});
+        }
+
+        [HttpPut("product/edit/{productId}")]
+        public async Task<IActionResult> EditProduct(int productId, [FromForm] ProductDto productDto)
+        {
+            var sellerIdClaim = User.FindFirst("sellerid")?.Value;
+            var sellerId = Convert.ToInt32(sellerIdClaim);
+
+            if (productDto == null || productId <= 0)
+            {
+                return BadRequest("Invalid product data.");
+            }
+
+            try
+            {
+                bool isUpdated = await _sellerService.EditProductAsync(productId, productDto, sellerId);
+
+                if (isUpdated)
+                {
+                    return Ok(new { Message = "Product updated successfully." });
+                }
+                else
+                {
+                    return NotFound(new { Message = "Product not found or you are not authorized to edit this product." });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception here if necessary
+                return StatusCode(500, new { Message = "An error occurred while updating the product.", Error = ex.Message });
+            }
+        }
     }
+}
 
 
     
 
-}
+
